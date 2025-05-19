@@ -26,6 +26,7 @@ class ChatAppDB:
     def clear_db(self):
         self.db.truncate()
 
+    # create a new chat db entry
     def add_new_chat(self, c_id: str):
         chatquery = Query()
         chat = self.db.search(chatquery["cid"] == c_id)
@@ -35,6 +36,7 @@ class ChatAppDB:
             self.db.insert({"cid": c_id, "msgs": []})
         return c_id
 
+    # add a new message for an existing chat to the db
     def add_msg_to_chat(self, c_id: str, msg: {}):
         chatquery = Query()
         msgs = self.db.search(chatquery["cid"] == c_id)
@@ -44,7 +46,7 @@ class ChatAppDB:
         msgs.append(msg)
         self.db.update({"msgs": msgs}, chatquery["cid"] == c_id)
 
-    # retrieve all msgs from a chat
+    # retrieve all msgs in the db from a chat
     def get_all_msgs(self, c_id: str, unread=False):
         chatquery = Query()
         try:
@@ -72,11 +74,10 @@ class ChatAppDB:
 
 # main chat backend class which handles requests received by the server object
 class ChatAppServer():
-    db_path = None
-    db = None
 
     def __init__(self, db_path=None):
         self.db_path = db_path
+        self.db = None
         self.init_db()
         self.api_router = APIRouter()
         self.api_router.add_api_route("/hello", self.test, methods=["GET"])
@@ -87,7 +88,6 @@ class ChatAppServer():
 
     # load db
     def init_db(self):
-        db = None
         if not os.path.isfile(self.db_path):
             print(">> no db found | creating")
         else:
@@ -169,7 +169,7 @@ class ChatAppServer():
         print("chat id:", chat_id)
         return chat_id
 
-    ### functions for REST server interaction
+    ### functions for API server interaction
 
     ### API call for getting all chat messages for specific c_id
     def read_chat(self, chat_id: str, unread: bool = False):

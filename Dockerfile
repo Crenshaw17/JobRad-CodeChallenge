@@ -8,5 +8,5 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 COPY code/src .
 COPY code/data .
-EXPOSE 8000
-#MD ["python3", "ChatClient.py"].
+EXPOSE 8080
+#CMD ["python3", "ChatClient.py"].

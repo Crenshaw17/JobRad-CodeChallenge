@@ -27,16 +27,19 @@ def choose_chat_mode(k):
 
 # base class for chat client CLI application
 class ChatClientBase():
-    server_connection = None
-    ui = None
 
     def __init__(self, ui=None):
         self.chatmode = SenderType.NOTDEFINED
         self.ui = ui
 
-    # create a transmittable message object and call server API to send message
+    # virtual method
+    def chat_runtime(self):
+        return
+
+    # API call to send a message, create a transmittable message object before
     def send_msg(self, m: str, sender_type: SenderType, sender_name: str, chat_id: str):
         msg = compose_msg(m, chat_id, sender_type, sender_name)
+        # the API call has to go to the docker container hostname on port 8080
         response = requests.put("http://chatserver:8080/chats/{:s}".format(chat_id),
                                 data=msg.model_dump_json(), headers={"Content-Type": "application/json"})
         if response.ok:
@@ -44,11 +47,16 @@ class ChatClientBase():
         else:
             self.ui.print("  message failed to send! :/\n", style="bold black on white italic")
 
-    # virtual method
-    def chat_runtime(self):
-        return
+    # method for handling user chat input and sending to server via REST API
+    def write_chat_msg(self, chat_id, chatter_name=""):
+        self.ui.print("\n")
+        self.ui.print(
+            "[black on white bold]-> Write your message below[/black on white bold] | Send with <ENTER>:")
+        msg = r.prompt.Prompt.ask("\n( [i green]{:s}[/i green] )".format(chatter_name))
+        self.ui.print("\n")
+        self.send_msg(msg, self.chatmode, chatter_name, chat_id)
 
-    # call server API to retrieve message from server
+    # API call to retrieve message from server
     # RETURNS: True  -> if chat exists
     #          False -> if chat not found
     #        + list[BaseMessage]
@@ -126,16 +134,19 @@ class ChatClientBase():
         mode = r.prompt.Prompt.ask("\n>> action")
 
         if mode == "m":
+            # write new message
             self.write_chat_msg(chat_id, chatter_name)
             self.ui.print("  -> refreshing shortly...\n")
             time.sleep(1.5)
             self.display_existing_chat(chat_id, refreshed=True)
             return True
         elif mode == "r":
+            # refresh the chat window
             print("-> Refreshing...\n")
             self.display_existing_chat(chat_id, refreshed=True)
             return True
         elif mode == "q":
+            # quit app
             if self.chatmode == SenderType.CLIENT:
                 print("-> Quitting. Thanks! :)")
             else:
@@ -144,14 +155,6 @@ class ChatClientBase():
         else:
             print("-> action not implemented!")
             return True
-
-    # method for handling user chat input and sending to server via REST API
-    def write_chat_msg(self, chat_id, chatter_name=""):
-        self.ui.print("\n")
-        self.ui.print("[black on white bold]-> Write your message below[/black on white bold] | Send with <ENTER>:")
-        msg = r.prompt.Prompt.ask("\n( [i green]{:s}[/i green] )".format(chatter_name))
-        self.ui.print("\n")
-        self.send_msg(msg, self.chatmode, chatter_name, chat_id)
 
 
 # a customer chat CLI interface
@@ -162,6 +165,7 @@ class CustomerChatClient(ChatClientBase):
         self.ui.print("\n")
         ui.rule("[bold blue]CLIENT MODE")
 
+    # main client ui routine
     def chat_runtime(self):
         self.ui.print(r.padding.Padding("\n-> Do you want to start a new chat or continue an existing one?", (0, 5)), style="bold")
 
@@ -191,7 +195,7 @@ class CustomerChatClient(ChatClientBase):
         while self.display_chat_loop(chat_id, chatter_name):
             continue
 
-
+    # API call to create a new chat on the server and enter chat ui routine
     def new_chat(self):
         new_chat_id = None
         self.ui.print("  -> creating new chat", style="italic")
@@ -201,22 +205,17 @@ class CustomerChatClient(ChatClientBase):
         if response.ok:
             new_chat_id = response.json()
             self.ui.print(r.padding.Padding("  -> Your chat_id is: [bold]{:s}[/bold]".format(new_chat_id), (1, 0)), style="italic")
+        else:
+            self.ui.print(">> Failed to create a new chat on the server!")
+            return "", ""
         chatter_name = self.get_chattername()
 
-        # directly new chat context
-        self.build_chat_window(new_chat_id, chatter_name)
+        # enter chat ui context
+        self.write_chat_msg(new_chat_id, chatter_name)
         return new_chat_id, chatter_name
 
-    def build_chat_window(self, chat_id, chatter_name=""):
-        # create chat console
-        self.write_chat_msg(chat_id, chatter_name)
 
-    def chat_prompt(self):
-        # create a chat message window
-        self.ui.print("(your message) >>:")
-
-
-# a service personnel chat CLI interface
+# customer service chat client mode
 class ServiceChatClient(ChatClientBase):
     def __init__(self, ui):
         super().__init__(ui=ui)
@@ -224,8 +223,8 @@ class ServiceChatClient(ChatClientBase):
         self.ui.print("\n")
         ui.rule("[bold blue]CUSTOMER SERVICE MODE")
 
+    # main ui routine
     def chat_runtime(self):
-        # display all chat threads that are available
         self.ui.print(r.padding.Padding("\n-> Do you want to display all chats or continue an existing one?", (0, 5)),
                       style="bold")
 
@@ -236,15 +235,19 @@ class ServiceChatClient(ChatClientBase):
             chat_id = ""
             chatter_name = ""
             if mode == "1":
+                # display all chats that are available
                 self.list_all_chats()
             elif mode == "2":
+                # open specific chat
                 self.display_existing_chat_loop()
             elif mode == "3":
+                # quit app
                 self.ui.print("  -> exiting. Thank you! :)\n", style="italic")
                 break
             else:
                 continue
 
+    # gets an existing chat from the server and enters the chat ui loop
     def display_existing_chat_loop(self):
         # only responding to client messages implemented, so ask for customer service name each time
         chat_id = self.get_chat_id_fromuser()
@@ -255,6 +258,7 @@ class ServiceChatClient(ChatClientBase):
         while self.display_chat_loop(chat_id, chatter_name):
             continue
 
+    # API request to get all existing chats from the server and displays
     def list_all_chats(self):
         chats = []
         chats_response = requests.get("http://chatserver:8080/chats")
@@ -267,7 +271,7 @@ class ServiceChatClient(ChatClientBase):
         self.ui.rule("all available chats")
         self.display_all_chats(base_chats)
 
-    # display function for all retrieved chats
+    # ui function for all retrieved chats
     def display_all_chats(self, base_chats):
         chats_table = r.table.Table(title="all customer chats")
         chats_table.add_column("#", style="green")
