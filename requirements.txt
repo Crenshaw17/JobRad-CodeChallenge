@@ -1,0 +1,9 @@
+click
+uuid
+datetime
+rich
+fastapi
+uvicorn
+tinydb
+pydantic
+requests

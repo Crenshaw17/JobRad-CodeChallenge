@@ -1,0 +1,1 @@
+docker run --rm --name chatclient --network chatapp-network -it -p 8081:8080 chatapp python3 ChatClient.py

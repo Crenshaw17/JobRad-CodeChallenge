@@ -1,0 +1,1 @@
+docker run --rm --name chatserver --network chatapp-network -it -p 8080:8080 -v db-data:/db chatapp python3 ChatServer.py
