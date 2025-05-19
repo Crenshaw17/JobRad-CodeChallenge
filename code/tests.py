@@ -1,24 +1,21 @@
 import unittest
-from src.ChatServer import ChatAppServer, ChatAppDB
+from ChatServer import ChatAppServer, ChatAppDB
 from tinydb import Query
-
-
-
-class ChatServerTests(unittest.TestCase):
-
-    def setUp(self):
-        self.db = ChatAppDB()
 
 
 class ChatAppDBTests(unittest.TestCase):
     def setUp(self):
+        with open("/db/test_db.json", "r") as f:
+            f.close()
         self.db = ChatAppDB("/db/test_db.json")
 
     def test_db_empty(self):
+        self.db.clear_db()
         assert self.db.db.all() == [], "database not empty"
 
     def test_db_function(self):
         testquery = Query()
+        self.db.clear_db()
 
         # test that chat was stored
         self.db.add_new_chat("test1")
@@ -36,7 +33,8 @@ class ChatAppDBTests(unittest.TestCase):
         assert len(test2query) > 0
 
         # test that 2 chat_ids are found
-        chat_ids = self.db.get_all_chat_ids()
+        chat_ids = self.db.get_all_chat_ids(nonempty=False)
+        print("chat ids", chat_ids)
         assert len(chat_ids) == 2
         self.assertIn("test1", chat_ids, "test1 cid not found")
         self.assertIn("test2", chat_ids, "test2 cid not found")
@@ -63,3 +61,7 @@ class ChatAppDBTests(unittest.TestCase):
         # check db emptied
         self.db.clear_db()
         assert self.db.db.all() == [], "database not empty"
+
+
+if __name__ == '__main__':
+    unittest.main()

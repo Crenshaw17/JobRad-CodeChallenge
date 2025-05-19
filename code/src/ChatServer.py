@@ -64,10 +64,13 @@ class ChatAppDB:
             return []
 
     # get the ids for all nonempty chats in the db
-    def get_all_chat_ids(self):
+    def get_all_chat_ids(self, nonempty=True):
         chat_ids = []
         for chat in self.db:
-            if len(chat["msgs"]) > 0:
+            if nonempty:
+                if len(chat["msgs"]) > 0:
+                    chat_ids.append(chat["cid"])
+            else:
                 chat_ids.append(chat["cid"])
         return chat_ids
 
